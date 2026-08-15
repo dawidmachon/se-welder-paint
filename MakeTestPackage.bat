@@ -99,3 +99,47 @@ echo Password also saved to: %ZIP%.password.txt
 echo.
 echo Ship the zip to the tester and send the password via a separate channel.
 echo The tester needs 7-Zip or WinRAR to extract ^(Explorer cannot open AES zips^), then runs Install-TestPlugin.bat.
+
+goto :upload
+
+REM ------------------------------------------------------------
+REM Upload to tmpfiles.org (temporary host, files auto-delete).
+REM API: POST https://tmpfiles.org/api/v1/upload
+REM      multipart: file=<zip>, expire=<seconds, 60-172800>
+REM      response: {"status":"success","data":{"url":"https://tmpfiles.org/{id}/{name}"}}
+REM Set UPLOAD=0 to skip, or pass expire seconds as the 3rd argument.
+:upload
+set "EXPIRE=%~3"
+if "%EXPIRE%"=="" set "EXPIRE=21600"
+if "%UPLOAD%"=="0" (
+    echo Upload skipped ^(UPLOAD=0^). Upload manually:
+    echo   curl -F "file=@%ZIP%" -F "expire=%EXPIRE%" https://tmpfiles.org/api/v1/upload
+    goto :eof
+)
+where curl.exe >nul 2>nul
+if errorlevel 1 (
+    echo ERROR: curl.exe not found - upload manually:
+    echo   curl -F "file=@%ZIP%" -F "expire=%EXPIRE%" https://tmpfiles.org/api/v1/upload
+    goto :eof
+)
+
+echo.
+echo Uploading to tmpfiles.org ^(expires in %EXPIRE% s^)...
+curl.exe -s -X POST -F "file=@%ZIP%" -F "expire=%EXPIRE%" -o "%ZIP%.upload.json" https://tmpfiles.org/api/v1/upload
+if errorlevel 1 (
+    echo ERROR: upload failed. The zip is still in dist\ - upload manually.
+    goto :eof
+)
+set "URL="
+for /f "usebackq delims=" %%U in (`powershell -NoProfile -Command "(ConvertFrom-Json -InputObject (Get-Content -Raw '%ZIP%.upload.json')).data.url"`) do set "URL=%%U"
+if not defined URL (
+    echo ERROR: could not parse upload response in "%ZIP%.upload.json" - upload manually.
+    goto :eof
+)
+
+echo.
+echo Download page: %URL%
+echo Direct link:   %URL:tmpfiles.org/=tmpfiles.org/dl/%
+echo ^(direct link redirects once - fine in browsers and download managers^)
+echo Link saved to: %ZIP%.upload.txt
+echo %URL%> "%ZIP%.upload.txt"
