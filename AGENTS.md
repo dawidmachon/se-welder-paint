@@ -33,9 +33,15 @@ Build: `dotnet build WelderPaint.sln` — deploys to `%AppData%\Pulsar\Legacy\Lo
 `...\Interim\Local`. The game must be CLOSED for the deploy copy to succeed.
 Author/repo: dawidmachon/se-welder-paint (not yet pushed).
 
-Internal test packages: `MakeTestPackage.bat [Debug|Release]` — assembles
-`dist\WelderPaint-<version>-test.zip` from the build outputs + `Package\*` (install /
-uninstall scripts + tester README). The tester just extracts the zip and runs
+Internal test packages: `MakeTestPackage.bat [Debug|Release] [name] [expire-seconds]` —
+assembles the build outputs + `Package\*` (install / uninstall scripts + tester README)
+into `dist\<name>-<version>-test.zip`, **always AES-256 encrypted** (7-Zip, random
+24-char password per build, saved to `dist\*.password.txt` — send zip link and
+password over separate channels), then **auto-uploads** to tmpfiles.org
+(`POST https://tmpfiles.org/api/v1/upload`, multipart `file` + `expire` seconds
+defaulting to 21600; `UPLOAD=0` skips). Links land in `dist\*.upload.txt`; the direct
+link is the page URL's `tmpfiles.org/` → `tmpfiles.org/dl/` variant. The tester
+extracts with 7-Zip/WinRAR (Explorer cannot open AES zips) and runs
 `Install-TestPlugin.bat`, which finds Pulsar (`%AppData%\Pulsar`), copies the files into
 `Legacy\Local` / `Interim\Local` and enables the plugin in each edition's active profile
 (`Profiles\Current.xml`, one-time `.bak-testplugin` backup, idempotent).
