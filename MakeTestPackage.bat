@@ -45,6 +45,13 @@ if not exist "%NAME%.xml" (
     exit /b 1
 )
 
+set "SEVENZIP=%ProgramFiles%\7-Zip\7z.exe"
+if not exist "%SEVENZIP%" (
+    echo ERROR: 7-Zip not found at "%SEVENZIP%".
+    echo Encrypted test packages require 7-Zip ^(https://7-zip.org^).
+    exit /b 1
+)
+
 if exist "%STAGE%" rmdir /s /q "%STAGE%"
 mkdir "%STAGE%\Plugin\Legacy" "%STAGE%\Plugin\Interim" || exit /b 1
 
@@ -61,15 +68,34 @@ copy /y "ClientPlugin\bin\%CONFIG%\net10.0\%NAME%.dll" "%STAGE%\Plugin\Interim\"
 copy /y "%NAME%.xml" "%STAGE%\Plugin\Interim\%NAME%.dll.xml" >nul
 
 if exist "%ZIP%" del /q "%ZIP%"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '%STAGE%\*' -DestinationPath '%ZIP%' -Force"
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: zip creation failed.
+
+REM Generated password: 24 chars, no ambiguous characters (no pipes in the PS code -
+REM the ^| escaping does not survive the for /f shell layers).
+for /f "delims=" %%P in ('powershell -NoProfile -Command "$s='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'; $c=New-Object char[] 24; $r=New-Object System.Random; for($i=0;$i -lt 24;$i++){$c[$i]=$s[$r.Next($s.Length)]}; -join $c"') do set "PASS=%%P"
+if not defined PASS (
+    echo ERROR: password generation failed.
     exit /b 1
 )
 
+"%SEVENZIP%" a -tzip -mem=AES256 -r -p%PASS% "%ZIP%" "%STAGE%\*" >nul
+if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: encrypted zip creation failed.
+    exit /b 1
+)
+
+REM Sanity check: the archive must decrypt with the password.
+"%SEVENZIP%" t -p%PASS% "%ZIP%" >nul
+if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: archive verification failed.
+    exit /b 1
+)
+
+echo %PASS%> "%ZIP%.password.txt"
+
 echo.
-echo Created: %ZIP%
-echo Contents:
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::OpenRead('%CD%\%ZIP%').Entries.FullName"
+echo Created: %ZIP%  ^(AES-256 encrypted^)
+echo Password: %PASS%
+echo Password also saved to: %ZIP%.password.txt
 echo.
-echo Ship this zip to the tester - they only need to extract and run Install-TestPlugin.bat.
+echo Ship the zip to the tester and send the password via a separate channel.
+echo The tester needs 7-Zip or WinRAR to extract ^(Explorer cannot open AES zips^), then runs Install-TestPlugin.bat.

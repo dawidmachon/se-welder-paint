@@ -1,6 +1,10 @@
 Welder Paint - internal test build v1.0.0
 ==========================================
 
+This archive is password-protected (AES-256). Extract it with 7-Zip or
+WinRAR using the password you received separately - Windows Explorer
+cannot open AES-encrypted zips.
+
 A plugin that lets you paint blocks by aiming a WELDER at them and pressing
 the left mouse button - instead of the vanilla block-in-hand ghost painting.
 
