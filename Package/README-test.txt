@@ -23,6 +23,9 @@ The log records every paint request from both paths, so we can compare
 
 Expected behavior:
 - Painted blocks change color (visual confirmation).
+- Precision targeting: place a visually small block (corner floor lamp, wall picture).
+  Aiming NEXT to it at the floor/wall must paint the floor/wall, not the small block;
+  aiming directly at the small block must paint it.
 - NO 'server refused' message on grids you may paint (e.g. faction-shared).
    A refusal message should only appear on grids you really may not paint.
 - On slow servers the paint can arrive with a delay (up to ~20 s) - that is normal,

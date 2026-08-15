@@ -16,6 +16,7 @@ public class Config : INotifyPropertyChanged
     private float paintRangeMeters = 15f;
     private bool requireWelder = true;
     private bool continuousPaint = true;
+    private bool precisionTargeting = true;
     private bool debugNetworkLogging = true;
 
     #endregion
@@ -52,6 +53,13 @@ public class Config : INotifyPropertyChanged
     {
         get => continuousPaint;
         set => SetField(ref continuousPaint, value);
+    }
+
+    [Checkbox(description: "Target the block actually under the crosshair (real collision shape, like the welder). Needed for visually small blocks (lamps, pictures) that occupy a whole cube cell. When off, any occupied cell the ray passes through is targeted.")]
+    public bool PrecisionTargeting
+    {
+        get => precisionTargeting;
+        set => SetField(ref precisionTargeting, value);
     }
 
     [Separator("Diagnostics")]

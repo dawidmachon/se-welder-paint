@@ -14,8 +14,12 @@ Design constraints (do not break these):
   `MyPlayer.SelectedArmorSkin` and the `MyGuiScreenColorPicker.ApplyColor/ApplySkin` checkboxes.
   Painting must go through `MyCubeGrid.SkinBlocks(min, max, hsv?, skin?, playSound)` — the same
   server-validated request vanilla uses (ownership checks stay on the server; never bypass them).
-- Paint only the single cube under the crosshair (`MyCubeGrid.RayCastBlocks` + `GetCubeBlock`),
-  obtained via `MyPhysics.CastRay` from the camera, walking parents up to the `MyCubeGrid`.
+- Paint only the block under the crosshair, obtained via `MyPhysics.CastRay` from the
+  camera, walking parents up to the `MyCubeGrid`. Default targeting is collision-precision:
+  the physics hit point nudged 1% of `GridSize` into the body, mapped with
+  `MyCubeGrid.WorldToGridInteger` (so visually small blocks like corner lamps / wall
+  pictures can be aimed past). Fallback / non-precision mode: `MyCubeGrid.RayCastBlocks`
+  + `GetCubeBlock` (vanilla whole-cell behavior).
 - Never paint while a GUI screen has focus (`MyScreenManager.GetScreenWithFocus() != null`).
 - C# `LangVersion=latest`, nullable disabled. Targets `net48` (Pulsar Legacy) and `net10.0`
   (Interim). No publicizer.

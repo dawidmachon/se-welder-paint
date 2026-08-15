@@ -5,6 +5,7 @@ using HarmonyLib;
 using Sandbox;
 using Sandbox.Engine.Physics;
 using Sandbox.Game.Entities;
+using Sandbox.Game.Entities.Cube;
 using Sandbox.Game.Gui;
 using Sandbox.Game.Multiplayer;
 using Sandbox.Game.Weapons;
@@ -132,16 +133,37 @@ public class WelderPaintService : IDisposable
                 return; // Something else (voxel, ...) blocks the line of sight.
             }
 
-            Vector3I? cell = grid.RayCastBlocks(from, to);
-            if (cell == null)
+            // Resolve the target block. RayCastBlocks() walks logical cells and returns the
+            // first OCCUPIED one, so a visually small block (corner lamp, wall picture)
+            // captures the whole cell and cannot be aimed past. In precision mode we instead
+            // take the block the physics ray physically hit (real collision shape, like the
+            // welder targets) by nudging the hit point slightly into the body and mapping
+            // it to its cell. Non-precision mode and the fallback use the vanilla cell walk.
+            Vector3I? cell = null;
+            MySlimBlock slimBlock = null;
+            bool usedCollisionTarget = false;
+            if (config.PrecisionTargeting)
             {
-                Log("grid hit (" + hitEntity.GetType().Name + ") but RayCastBlocks found no cube within range");
+                Vector3D hitPoint = hit.Position + direction * (grid.GridSize * 0.01f);
+                Vector3I hitCell = grid.WorldToGridInteger(hitPoint);
+                slimBlock = grid.GetCubeBlock(hitCell);
+                if (slimBlock != null)
+                {
+                    cell = hitCell;
+                    usedCollisionTarget = true;
+                }
+            }
+            if (slimBlock == null)
+            {
+                cell = grid.RayCastBlocks(from, to);
+                if (cell != null)
+                    slimBlock = grid.GetCubeBlock(cell.Value);
+            }
+            if (slimBlock == null || cell == null)
+            {
+                Log("grid hit (" + hitEntity.GetType().Name + ") but no cube found within range");
                 return;
             }
-
-            var slimBlock = grid.GetCubeBlock(cell.Value);
-            if (slimBlock == null)
-                return;
 
             bool applyColor = (bool)ApplyColorProperty.GetValue(null);
             bool applySkin = (bool)ApplySkinProperty.GetValue(null);
@@ -153,6 +175,7 @@ public class WelderPaintService : IDisposable
             long myIdentity = MySession.Static.LocalHumanPlayer?.Identity.IdentityId ?? 0;
             Log("target " + slimBlock.BlockDefinition.Id + " at " + cell.Value
                 + " grid " + grid.EntityId
+                + " targeting=" + (usedCollisionTarget ? "collision" : "cell-walk")
                 + " | applyColor=" + applyColor + " applySkin=" + applySkin
                 + " | selectedHSV=" + (color.HasValue ? color.Value.ToString("F3") : "null")
                 + " selectedSkin='" + (skin.HasValue ? skin.Value.String : "null") + "'"

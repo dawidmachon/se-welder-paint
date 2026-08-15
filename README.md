@@ -18,7 +18,9 @@ simply **aiming a welder at a block and clicking** — much more precise, especi
    *Apply Skin* checkboxes are respected, same as vanilla).
 2. Toggle paint mode with the configurable keybind (default **O**).
 3. Aim the crosshair at any placed block and press the left mouse button.
-   Hold it to spray-paint continuously.
+   Hold it to spray-paint continuously. With precision targeting the crosshair ray
+   uses the block's real collision shape, so you can aim at the floor beside a corner
+   lamp or the wall around a picture - exactly like welding does.
 
 Server-side ownership rules are respected automatically — the plugin sends exactly the same
 network request (`MyCubeGrid.SkinBlocks`) the vanilla ghost painting sends, so it works in
@@ -30,6 +32,9 @@ multiplayer without granting any extra rights.
 - **Paint range** — max distance (m) from the camera to the target block, default 15 m
 - **Require welder** — only paint while holding a welder (default on)
 - **Continuous paint** — keep painting while LMB is held (default on)
+- **Precision targeting** — target the block actually under the crosshair (real collision
+  shape, like the welder), so visually small blocks that occupy a whole cube cell (corner
+  lamps, wall pictures) can be aimed past (default on)
 - **Debug network logging** — logs every paint network event (outgoing, incoming,
   server rejections) as `[WelderPaint][net]` lines in the game log, for both vanilla and
   plugin painting (default on, needs game restart after change)
