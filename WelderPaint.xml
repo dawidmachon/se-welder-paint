@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<PluginData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="GitHubPlugin">
+
+    <!-- The ID of your plugin, never change this -->
+    <Id>93B0A65A-8F9A-4649-BF65-D96532407864</Id>
+
+    <!-- GitHub repository ID -->
+    <RepoId>dawidmachon/se-welder-paint</RepoId>
+
+    <!-- The name of your plugin that will appear in the plugin list -->
+    <FriendlyName>Welder Paint</FriendlyName>
+
+    <!-- The author name that you want to appear in the plugin list -->
+    <Author>dawidmachon</Author>
+
+    <!-- Optional tooltip for the plugin in the plugin list -->
+    <Tooltip>Paint blocks by aiming a welder at them instead of using a ghost block.</Tooltip>
+
+    <!-- Optional plugin description. If omitted, this will be the same as the Tooltip. 1000 characters max. -->
+    <Description>Pick a color or skin in the normal color picker (P), then enter paint mode with a configurable keybind and simply aim your welder at a block and click to paint it - no need to hold a block in hand and touch its sides. Uses the exact same (server-validated) paint request as vanilla block painting.</Description>
+
+    <!-- Only source code in the Directory entries listed in SourceDirectories is compiled. Exclude any test projects or similar. -->
+    <SourceDirectories>
+        <Directory>ClientPlugin</Directory>
+    </SourceDirectories>
+
+    <!-- The current plugin version's commit hash -->
+    <Commit>TODO Git commit hash</Commit>
+
+</PluginData>
