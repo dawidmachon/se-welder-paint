@@ -1,38 +1,62 @@
-Welder Paint - internal test build
-==================================
+Welder Paint - internal test build v1.0.0
+==========================================
 
+A plugin that lets you paint blocks by aiming a WELDER at them and pressing
+the left mouse button - instead of the vanilla block-in-hand ghost painting.
+
+1. Install
+----------
 1. Make sure Space Engineers is CLOSED.
 2. Run Install-TestPlugin.bat.
    - It finds Pulsar by itself (%AppData%\Pulsar).
    - If Pulsar is elsewhere, run it from a command line:
        Install-TestPlugin.bat "C:\path\to\Pulsar"
 3. Start the game through Pulsar as usual.
+4. To remove the plugin later, run Uninstall-TestPlugin.bat.
 
-How to test:
-- Press P, pick a color/skin as usual (Apply Color / Apply Skin checkboxes work).
-- Toggle paint mode with O (configurable in Pulsar plugin settings).
-- Take a welder in hand, aim at any placed block, press LMB.
-  Hold LMB to paint continuously.
+2. How to test
+--------------
+Setup: enter a world (singleplayer or a server where you may build),
+take a WELDER in hand, press P and pick any color.
 
-IMPORTANT - do BOTH of these in the same world:
-1. Paint a few blocks the VANILLA way (block in hand + P palette + touching
-   the block with the ghost), both on a grid you own and one you do not own.
-2. Paint the same blocks with the plugin (O + welder + LMB).
-The log records every paint request from both paths, so we can compare
-   exactly what vanilla sends vs what the plugin sends.
+Toggle paint mode with O. You should see "Welder paint: ON" on the HUD.
+Aim at a block and press LMB. Hold LMB to paint continuously.
+Press O again to turn paint mode off.
 
-Expected behavior:
-- Painted blocks change color (visual confirmation).
-- Precision targeting: place a visually small block (corner floor lamp, wall picture).
-  Aiming NEXT to it at the floor/wall must paint the floor/wall, not the small block;
-  aiming directly at the small block must paint it.
-- NO 'server refused' message on grids you may paint (e.g. faction-shared).
-   A refusal message should only appear on grids you really may not paint.
-- On slow servers the paint can arrive with a delay (up to ~20 s) - that is normal,
-   the plugin waits before reporting a problem.
+What to check (in any order):
+a) Basic - paint a normal armor block: it changes color.
+b) Precision on small blocks - place a corner floor lamp on a floor and
+   a picture on a wall:
+      - aiming AT the lamp/picture paints THE LAMP/PICTURE
+      - aiming at the floor BESIDE the lamp paints the floor
+      - aiming at the wall AROUND the picture paints the wall
+   (same targeting feel as the welder's own highlight)
+c) Skins - pick a skin in the P palette (Apply Skin checkbox): painting
+   applies the skin, not just the color.
+d) Server rules - on a multiplayer server, paint a grid you own or share
+   with your faction: must work. On a grid you may NOT paint, you should
+   see "server refused" (that message can appear with a delay on slow
+   servers - up to ~20 s - this is normal).
+e) Vanilla painting still works normally (block in hand + P + touching
+   a block with the ghost).
 
-To remove the plugin, run Uninstall-TestPlugin.bat.
+3. Settings
+-----------
+Right after install the defaults are: keybind O, range 15 m, welder
+required, continuous painting ON, precision targeting ON, debug network
+logging ON. You can change them in the plugin's config (Pulsar settings).
 
-If something does not work, send back the newest file:
-%AppData%\SpaceEngineers\SpaceEngineers.log
-(lines starting with [WelderPaint] tell us what happened).
+4. If something does not work
+-----------------------------
+Send back the newest file:
+    %AppData%\SpaceEngineers\SpaceEngineers.log
+Everything the plugin does is logged on lines starting with [WelderPaint].
+Especially useful:
+    [WelderPaint] paint mode ON / OFF
+    [WelderPaint] target <block> at <cell> ... targeting=visual|collision|cell-walk
+    [WelderPaint] confirmed on grid <id> at <cell>
+    [WelderPaint] REJECTED by server: ...
+    [WelderPaint][net] OUT/IN/SRV/REJ ...   (paint network traffic,
+                                              also for vanilla painting)
+
+Thank you for testing!
