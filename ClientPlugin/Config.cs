@@ -55,7 +55,7 @@ public class Config : INotifyPropertyChanged
         set => SetField(ref continuousPaint, value);
     }
 
-    [Checkbox(description: "Target the block actually under the crosshair (real collision shape, like the welder). Needed for visually small blocks (lamps, pictures) that occupy a whole cube cell. When off, any occupied cell the ray passes through is targeted.")]
+    [Checkbox(description: "Gun-style targeting: paint the first block whose visible model the crosshair ray crosses, then the collision hit, then the first occupied cell. Lets you aim at collision-less decorative blocks (corner lamps, pictures) as well as at the floor beside them. When off, any occupied cell the ray passes through is targeted.")]
     public bool PrecisionTargeting
     {
         get => precisionTargeting;

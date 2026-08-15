@@ -40,6 +40,7 @@ public class WelderPaintService : IDisposable
         AccessTools.TypeByName("Sandbox.Game.Gui.MyGuiScreenColorPicker"), "ApplySkin");
 
     private static readonly List<MyPhysics.HitInfo> Hits = new List<MyPhysics.HitInfo>();
+    private static readonly List<Vector3I> CellBuffer = new List<Vector3I>();
 
     private readonly Config config = Config.Current;
     private bool paintMode;
@@ -133,24 +134,58 @@ public class WelderPaintService : IDisposable
                 return; // Something else (voxel, ...) blocks the line of sight.
             }
 
-            // Resolve the target block. RayCastBlocks() walks logical cells and returns the
-            // first OCCUPIED one, so a visually small block (corner lamp, wall picture)
-            // captures the whole cell and cannot be aimed past. In precision mode we instead
-            // take the block the physics ray physically hit (real collision shape, like the
-            // welder targets) by nudging the hit point slightly into the body and mapping
-            // it to its cell. Non-precision mode and the fallback use the vanilla cell walk.
+            // Resolve the target block, mirroring vanilla tool targeting
+            // (MyDrillSensorRayCast + MyCasterComponent):
+            // 1) PHYSICS candidate - the physics hit point nudged 5 mm into the body
+            //    along the inverted surface normal, mapped to its cell.
+            // 2) VISUAL candidates - walk the ray's cells and intersect the aim ray with
+            //    each block's visible extent (fat block PositionComp.LocalAABB in the
+            //    block's local space; slim blocks fill their whole cell). This is how
+            //    vanilla targets blocks WITHOUT collision (corner lamps, wall pictures).
+            // 3) The nearest candidate wins - so aiming AT the lamp targets the lamp
+            //    (its AABB is hit first), while aiming at the floor beside it skips the
+            //    lamp's small AABB and targets the floor (physics candidate).
             Vector3I? cell = null;
             MySlimBlock slimBlock = null;
-            bool usedCollisionTarget = false;
+            string targeting = "cell-walk";
             if (config.PrecisionTargeting)
             {
-                Vector3D hitPoint = hit.Position + direction * (grid.GridSize * 0.01f);
-                Vector3I hitCell = grid.WorldToGridInteger(hitPoint);
-                slimBlock = grid.GetCubeBlock(hitCell);
-                if (slimBlock != null)
+                Vector3D nudged = hit.Position - (Vector3D)(Vector3)hit.HkHitInfo.Normal * 0.005;
+                Vector3I physCell = grid.WorldToGridInteger(nudged);
+                MySlimBlock physBlock = grid.GetCubeBlock(physCell);
+                double physDist = (hit.Position - from).Length();
+
+                var ray = new RayD(from, direction);
+                double bestDist = double.MaxValue;
+                Vector3I bestCell = default(Vector3I);
+                MySlimBlock bestBlock = null;
+                grid.RayCastCells(from, to, CellBuffer);
+                foreach (Vector3I walkedCell in CellBuffer)
                 {
-                    cell = hitCell;
-                    usedCollisionTarget = true;
+                    var walkedBlock = grid.GetCubeBlock(walkedCell);
+                    if (walkedBlock == null)
+                        continue;
+                    double? d = RayBlockVisualDistance(grid, walkedBlock, walkedCell, ref ray);
+                    if (d.HasValue && d.Value < bestDist)
+                    {
+                        bestDist = d.Value;
+                        bestCell = walkedCell;
+                        bestBlock = walkedBlock;
+                    }
+                }
+                CellBuffer.Clear();
+
+                if (bestBlock != null && (physBlock == null || bestDist <= physDist))
+                {
+                    cell = bestCell;
+                    slimBlock = bestBlock;
+                    targeting = "visual";
+                }
+                else if (physBlock != null)
+                {
+                    cell = physCell;
+                    slimBlock = physBlock;
+                    targeting = "collision";
                 }
             }
             if (slimBlock == null)
@@ -175,7 +210,7 @@ public class WelderPaintService : IDisposable
             long myIdentity = MySession.Static.LocalHumanPlayer?.Identity.IdentityId ?? 0;
             Log("target " + slimBlock.BlockDefinition.Id + " at " + cell.Value
                 + " grid " + grid.EntityId
-                + " targeting=" + (usedCollisionTarget ? "collision" : "cell-walk")
+                + " targeting=" + targeting
                 + " | applyColor=" + applyColor + " applySkin=" + applySkin
                 + " | selectedHSV=" + (color.HasValue ? color.Value.ToString("F3") : "null")
                 + " selectedSkin='" + (skin.HasValue ? skin.Value.String : "null") + "'"
@@ -296,6 +331,38 @@ public class WelderPaintService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Distance where the aim ray crosses the block's visible extent, or null.
+    /// Mirrors vanilla MyDrillSensorRayCast: intersection with PositionComp.LocalAABB
+    /// in the block's LOCAL space (+0.01f epsilon so grazing rays count), exact for
+    /// rotated grids. Slim blocks have no entity, so their whole cube cell is used
+    /// (structural blocks visually fill it).
+    /// </summary>
+    private static double? RayBlockVisualDistance(MyCubeGrid grid, MySlimBlock block, Vector3I cell, ref RayD ray)
+    {
+        var fat = block.FatBlock;
+        if (fat != null)
+        {
+            MatrixD inv = fat.PositionComp.WorldMatrixNormalizedInv;
+            Vector3 localFrom = (Vector3)Vector3D.Transform(ray.Position, inv);
+            Vector3 localDir = (Vector3)Vector3D.Transform(ray.Position + ray.Direction, inv) - localFrom;
+            float len = localDir.Length();
+            if (len < 1e-09f)
+                return null;
+            float? dist = new Ray(localFrom, localDir / len).Intersects(fat.PositionComp.LocalAABB);
+            if (dist.HasValue)
+                return dist.Value + 0.01; // vanilla epsilon
+            return null;
+        }
+
+        Vector3D center = grid.GridIntegerToWorld(cell);
+        double half = grid.GridSize * 0.5;
+        var box = new BoundingBoxD(center - half, center + half);
+        double? result;
+        box.Intersects(ref ray, out result);
+        return result;
+    }
+
     private static bool HsvEqual(Vector3 a, Vector3 b)
     {
         // HSV is packed to integers on the wire (hue resolution 1/360), so allow small slack.
@@ -336,5 +403,6 @@ public class WelderPaintService : IDisposable
     {
         paintMode = false;
         Hits.Clear();
+        CellBuffer.Clear();
     }
 }
