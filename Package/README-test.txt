@@ -18,6 +18,23 @@ the left mouse button - instead of the vanilla block-in-hand ghost painting.
 3. Start the game through Pulsar as usual.
 4. To remove the plugin later, run Uninstall-TestPlugin.bat.
 
+1b. Manual install (if the .bat does not work)
+----------------------------------------------
+1. Win+R -> type %AppData%\Pulsar -> Enter. Use the Legacy or Interim
+   folder matching the Pulsar edition you launch (if only one exists,
+   use that one).
+2. From the extracted Plugin\<edition>\ folder copy BOTH files
+   (WelderPaint.dll and WelderPaint.dll.xml) into
+   %AppData%\Pulsar\<edition>\Local\ (create the Local folder if missing).
+3. Back up Profiles\Current.xml, then open it in Notepad and add
+   <string>WelderPaint.dll</string> inside the <Local> section, e.g.:
+       <Local>
+         <string>WelderPaint.dll</string>
+       </Local>
+   If you find <Local /> on one line, replace that whole tag with the
+   three lines above. Save (UTF-8).
+4. Start the game through Pulsar.
+
 2. How to test
 --------------
 Setup: enter a world (singleplayer or a server where you may build),
