@@ -17,7 +17,7 @@ public class Config : INotifyPropertyChanged
     private bool requireWelder = true;
     private bool continuousPaint = true;
     private bool precisionTargeting = true;
-    private bool debugNetworkLogging = true;
+    private bool debugNetworkLogging = false;
 
     #endregion
 
@@ -64,7 +64,7 @@ public class Config : INotifyPropertyChanged
 
     [Separator("Diagnostics")]
 
-    [Checkbox(description: "Log all paint network traffic (outgoing, incoming, server rejections) to the game log as [WelderPaint][net] lines. Requires game restart after change.")]
+    [Checkbox(description: "Log all paint network traffic (outgoing, incoming, server rejections) to the game log as [WelderPaint][net] lines. Off by default; needs game restart after change.")]
     public bool DebugNetworkLogging
     {
         get => debugNetworkLogging;

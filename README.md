@@ -37,7 +37,7 @@ multiplayer without granting any extra rights.
   lamps, wall pictures) can be aimed past (default on)
 - **Debug network logging** — logs every paint network event (outgoing, incoming,
   server rejections) as `[WelderPaint][net]` lines in the game log, for both vanilla and
-  plugin painting (default on, needs game restart after change)
+  plugin painting (off by default, needs game restart after change)
 
 Paint results are verified in the background: the plugin compares the block's color after the
 server applied it (up to 20 s window, because MP servers can lag the paint broadcast) and tells
