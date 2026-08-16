@@ -7,7 +7,7 @@ REM  Collects everything needed to debug the WelderPaint test:
 REM  - newest Space Engineers game logs (all [WelderPaint] lines)
 REM  - Pulsar Legacy/Interim info.log (plugin load errors)
 REM  - Pulsar Profiles\Current.xml (which plugins were enabled)
-REM  - WelderPaint.cfg (plugin settings)
+REM  - all plugin configs (Storage*.cfg)
 REM  into one zip on the Desktop, ready to send back.
 REM  No admin rights needed, nothing is changed or deleted.
 REM ============================================================
@@ -56,13 +56,15 @@ for %%E in (Legacy Interim) do (
 if exist "%PULSAR%\config.xml" copy /y "%PULSAR%\config.xml" "%STAGE%\" >nul
 echo       !PCOUNT! Pulsar edition^(s^) collected.
 
-echo [3/4] Plugin config...
-if exist "%SEDIR%\Storage\%PLUGIN%.cfg" (
-    copy /y "%SEDIR%\Storage\%PLUGIN%.cfg" "%STAGE%\" >nul
-    echo       config collected.
-) else (
-    echo       no config file ^(defaults in use^) - fine.
+echo [3/4] Plugin configs...
+set "CFG=0"
+if exist "%SEDIR%\Storage" (
+    for %%C in ("%SEDIR%\Storage\*.cfg") do (
+        copy /y "%%C" "%STAGE%\" >nul
+        set /a CFG+=1
+    )
 )
+echo       !CFG! plugin config^(s^) collected.
 
 echo [4/4] Packing...
 for /f %%T in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "TS=%%T"
