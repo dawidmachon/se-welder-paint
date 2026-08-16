@@ -25,6 +25,6 @@
     </SourceDirectories>
 
     <!-- The current plugin version's commit hash -->
-    <Commit>TODO Git commit hash</Commit>
+    <Commit>cf5b744510eaa82f7f711b68f9cb4f3ec7344467</Commit>
 
 </PluginData>
