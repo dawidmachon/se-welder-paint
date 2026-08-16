@@ -26,6 +26,10 @@ the left mouse button - instead of the vanilla block-in-hand ghost painting.
 2. From the extracted Plugin\<edition>\ folder copy BOTH files
    (WelderPaint.dll and WelderPaint.dll.xml) into
    %AppData%\Pulsar\<edition>\Local\ (create the Local folder if missing).
+   WHICH EDITION? Your game log's first lines show the runtime:
+   ".NET 10.x" = use the Plugin\Interim (net10) files,
+   ".NET Framework 4.x" = use Plugin\Legacy files.
+   If unsure, copy the Interim files - current game builds are .NET 10.
 3. Back up Profiles\Current.xml, then open it in Notepad and add
    <string>WelderPaint.dll</string> inside the <Local> section, e.g.:
        <Local>

@@ -42,16 +42,18 @@ if defined NEWEST (
 )
 echo       !COUNT! log file^(s^) collected.
 
-echo [2/4] Pulsar logs...
+echo [2/4] Pulsar logs and local plugins...
 set "PCOUNT=0"
 for %%E in (Legacy Interim) do (
     if exist "%PULSAR%\%%E\info.log" (
         mkdir "%STAGE%\Pulsar-%%E" 2>nul
         copy /y "%PULSAR%\%%E\info.log" "%STAGE%\Pulsar-%%E\" >nul
         if exist "%PULSAR%\%%E\Profiles\Current.xml" copy /y "%PULSAR%\%%E\Profiles\Current.xml" "%STAGE%\Pulsar-%%E\" >nul
+        dir /b "%PULSAR%\%%E\Local" > "%STAGE%\Pulsar-%%E\Local-files.txt" 2>nul
         set /a PCOUNT+=1
     )
 )
+if exist "%PULSAR%\config.xml" copy /y "%PULSAR%\config.xml" "%STAGE%\" >nul
 echo       !PCOUNT! Pulsar edition^(s^) collected.
 
 echo [3/4] Plugin config...
