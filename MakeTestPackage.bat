@@ -59,6 +59,7 @@ echo Staging %NAME% v%VER% (%CONFIG%)...
 
 copy /y "Package\Install-TestPlugin.bat" "%STAGE%\" >nul
 copy /y "Package\Uninstall-TestPlugin.bat" "%STAGE%\" >nul
+copy /y "Package\Collect-Diagnostics.bat" "%STAGE%\" >nul
 copy /y "Package\README-test.txt" "%STAGE%\" >nul
 
 REM net48 build -> Pulsar Legacy, net10.0 build -> Pulsar Interim

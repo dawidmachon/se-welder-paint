@@ -50,10 +50,12 @@ Right after install the defaults are: keybind O, range 15 m, welder
 required, continuous painting ON, precision targeting ON, debug network
 logging ON. You can change them in the plugin's config (Pulsar settings).
 
-4. If something does not work
------------------------------
-Send back the newest file:
-    %AppData%\SpaceEngineers\SpaceEngineers.log
+4. If something does not work - or after the test
+-------------------------------------------------
+Run Collect-Diagnostics.bat (from the extracted folder). It collects all logs
+and settings into WelderPaint-diagnostics-<date>.zip on your Desktop.
+Send that one file back - nothing else needed.
+
 Everything the plugin does is logged on lines starting with [WelderPaint].
 Especially useful:
     [WelderPaint] paint mode ON / OFF
