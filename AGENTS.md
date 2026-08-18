@@ -20,14 +20,20 @@ Design constraints (do not break these):
   `MyCubeGrid.WorldToGridInteger` (so visually small blocks like corner lamps / wall
   pictures can be aimed past). Fallback / non-precision mode: `MyCubeGrid.RayCastBlocks`
   + `GetCubeBlock` (vanilla whole-cell behavior).
-- Never paint while a GUI screen has focus (`MyScreenManager.GetScreenWithFocus() != null`).
+- Never paint while a GUI screen has focus (`MyScreenManager.GetScreenWithFocus() != null` →
+  actually `is not MyGuiScreenGamePlay`, the game's own gameplay-screen check).
+- Eyedropper writes player selection via the public `MyPlayer.SelectedBuildColor` /
+  `BuildArmorSkin` setters (same state the P color picker edits) - no network involved.
 - C# `LangVersion=latest`, nullable disabled. Targets `net48` (Pulsar Legacy) and `net10.0`
   (Interim). No publicizer.
 
 Key files:
 - `ClientPlugin/Plugin.cs` — init + per-frame update.
-- `ClientPlugin/WelderPaintService.cs` — keybind toggle, welder check, raycast, paint request.
-- `ClientPlugin/Config.cs` — settings dialog (keybind, range, require-welder, continuous paint).
+- `ClientPlugin/WelderPaintService.cs` — keybind toggle, welder check, raycast targeting
+  (visual AABB / collision / cell-walk), paint request, eyedropper (Shift+P), persistent
+  paint-mode HUD notification (MyHudNotification with INFINITE lifespan), verification.
+- `ClientPlugin/Config.cs` — settings dialog (keybinds, range, require-welder,
+  continuous paint, precision targeting, debug logging).
 
 Build: `dotnet build WelderPaint.sln` — deploys to `%AppData%\Pulsar\Legacy\Local` and
 `...\Interim\Local`. The game must be CLOSED for the deploy copy to succeed.

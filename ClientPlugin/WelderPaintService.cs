@@ -12,6 +12,7 @@ using Sandbox.Game.Weapons;
 using Sandbox.Game.World;
 using Sandbox.Graphics.GUI;
 using VRage.Input;
+using VRage.Game.ModAPI;
 using VRage.ModAPI;
 using VRage.Utils;
 using VRageMath;
@@ -46,6 +47,7 @@ public class WelderPaintService : IDisposable
     private bool paintMode;
     private int lastPaintMs;
     private bool welderMissingNotified;
+    private IMyHudNotification paintModeNotification;
 
     public void Update()
     {
@@ -54,6 +56,7 @@ public class WelderPaintService : IDisposable
         if (session == null || input == null)
         {
             paintMode = false;
+            HidePaintModeHud();
             return;
         }
 
@@ -61,6 +64,7 @@ public class WelderPaintService : IDisposable
         {
             paintMode = !paintMode;
             welderMissingNotified = false;
+            if (paintMode) ShowPaintModeHud(); else HidePaintModeHud();
             Notify(paintMode ? "Welder paint: ON" : "Welder paint: OFF");
             Log(paintMode ? "paint mode ON" : "paint mode OFF");
             if (paintMode)
@@ -93,6 +97,13 @@ public class WelderPaintService : IDisposable
             return;
         }
 
+        // Eyedropper: copy color + skin of the targeted block into the selection.
+        if (config.EyedropperKeybind.Key != MyKeys.None && config.EyedropperKeybind.HasPressed(input))
+        {
+            TryCopyTargetedColor();
+            return;
+        }
+
         bool wantPaint = config.ContinuousPaint ? input.IsLeftMousePressed() : input.IsNewLeftMousePressed();
         if (!wantPaint)
             return;
@@ -105,11 +116,28 @@ public class WelderPaintService : IDisposable
         TryPaintTargetedBlock();
     }
 
-    private void TryPaintTargetedBlock()
+    /// <summary>
+    /// Resolves the block under the crosshair, mirroring vanilla tool targeting
+    /// (MyDrillSensorRayCast + MyCasterComponent):
+    /// 1) PHYSICS candidate - the physics hit point nudged 5 mm into the body
+    ///    along the inverted surface normal, mapped to its cell.
+    /// 2) VISUAL candidates - walk the ray's cells and intersect the aim ray with
+    ///    each block's visible extent (fat block PositionComp.LocalAABB in the
+    ///    block's local space; slim blocks fill their whole cell). This is how
+    ///    vanilla targets blocks WITHOUT collision (corner lamps, wall pictures).
+    /// 3) The nearest candidate wins - so aiming AT the lamp targets the lamp
+    ///    (its AABB is hit first), while aiming at the floor beside it skips the
+    ///    lamp's small AABB and targets the floor (physics candidate).
+    /// </summary>
+    private MySlimBlock FindTargetedBlock(out MyCubeGrid grid, out Vector3I? cell, out string targeting)
     {
+        grid = null;
+        cell = null;
+        targeting = "cell-walk";
+
         var camera = MySector.MainCamera;
         if (camera == null)
-            return;
+            return null;
 
         Vector3D from = camera.Position;
         Vector3D direction = camera.WorldMatrix.Forward;
@@ -124,30 +152,17 @@ public class WelderPaintService : IDisposable
             if (hitEntity == MySession.Static.LocalCharacter)
                 continue;
 
-            var grid = hitEntity as MyCubeGrid;
+            grid = hitEntity as MyCubeGrid;
             if (grid == null && hitEntity != null)
                 grid = FindParentGrid(hitEntity);
 
             if (grid == null)
             {
                 Log("no grid on ray (hit " + (hitEntity == null ? "nothing" : hitEntity.GetType().Name) + ")");
-                return; // Something else (voxel, ...) blocks the line of sight.
+                return null; // Something else (voxel, ...) blocks the line of sight.
             }
 
-            // Resolve the target block, mirroring vanilla tool targeting
-            // (MyDrillSensorRayCast + MyCasterComponent):
-            // 1) PHYSICS candidate - the physics hit point nudged 5 mm into the body
-            //    along the inverted surface normal, mapped to its cell.
-            // 2) VISUAL candidates - walk the ray's cells and intersect the aim ray with
-            //    each block's visible extent (fat block PositionComp.LocalAABB in the
-            //    block's local space; slim blocks fill their whole cell). This is how
-            //    vanilla targets blocks WITHOUT collision (corner lamps, wall pictures).
-            // 3) The nearest candidate wins - so aiming AT the lamp targets the lamp
-            //    (its AABB is hit first), while aiming at the floor beside it skips the
-            //    lamp's small AABB and targets the floor (physics candidate).
-            Vector3I? cell = null;
             MySlimBlock slimBlock = null;
-            string targeting = "cell-walk";
             if (config.PrecisionTargeting)
             {
                 Vector3D nudged = hit.Position - (Vector3D)(Vector3)hit.HkHitInfo.Normal * 0.005;
@@ -197,85 +212,138 @@ public class WelderPaintService : IDisposable
             if (slimBlock == null || cell == null)
             {
                 Log("grid hit (" + hitEntity.GetType().Name + ") but no cube found within range");
-                return;
+                return null;
             }
-
-            bool applyColor = (bool)ApplyColorProperty.GetValue(null);
-            bool applySkin = (bool)ApplySkinProperty.GetValue(null);
-            Vector3? color = applyColor ? MyPlayer.SelectedColor : (Vector3?)null;
-            MyStringHash? skin = applySkin
-                ? MyStringHash.GetOrCompute(MyPlayer.SelectedArmorSkin)
-                : (MyStringHash?)null;
-
-            long myIdentity = MySession.Static.LocalHumanPlayer?.Identity.IdentityId ?? 0;
-            Log("target " + slimBlock.BlockDefinition.Id + " at " + cell.Value
-                + " grid " + grid.EntityId
-                + " targeting=" + targeting
-                + " | applyColor=" + applyColor + " applySkin=" + applySkin
-                + " | selectedHSV=" + (color.HasValue ? color.Value.ToString("F3") : "null")
-                + " selectedSkin='" + (skin.HasValue ? skin.Value.String : "null") + "'"
-                + " | blockHSV=" + slimBlock.ColorMaskHSV.ToString("F3")
-                + " blockSkin='" + slimBlock.SkinSubtypeId.String + "'"
-                + " | bigOwners=[" + string.Join(",", grid.BigOwners) + "]"
-                + " myIdentity=" + myIdentity
-                + " isServer=" + Sync.IsServer);
-
-            if (color == null && skin == null)
-            {
-                Log("nothing to apply: enable Apply Color and/or Apply Skin in the P color picker");
-                Notify("Welder paint: enable Apply Color/Skin in the P palette");
-                return;
-            }
-
-            bool sameColor = color.HasValue && HsvEqual(slimBlock.ColorMaskHSV,
-                ColorExtensions.UnpackHSVFromUint(color.Value.PackHSVToUint()));
-            bool sameSkin = !skin.HasValue || skin.Value.String == slimBlock.SkinSubtypeId.String;
-            if (sameColor && sameSkin)
-            {
-                // The server-side ChangeColorAndSkin() is a silent no-op in this case
-                // (same HSV + same skin -> returns false, no sound, no notification).
-                Log("skip: block already has exactly this color/skin");
-                Notify("Welder paint: block already has this color/skin");
-                return;
-            }
-
-            // Same request vanilla painting sends; validated on the server (ownership).
-            PluginRequestInProgress = true;
-            try
-            {
-                grid.SkinBlocks(cell.Value, cell.Value, color, skin, playSound: true);
-            }
-            finally
-            {
-                PluginRequestInProgress = false;
-            }
-            Log("request sent: " + slimBlock.BlockDefinition.Id + " at " + cell.Value);
-
-            // Verify afterwards: SP applies synchronously, MP needs the OnSkinBlock
-            // broadcast to come back (observed from ~50 ms up to ~16 s server lag),
-            // so re-check every frame and only report failure after the deadline.
-            for (int i = pendingChecks.Count - 1; i >= 0; i--)
-            {
-                if (pendingChecks[i].GridId == grid.EntityId && pendingChecks[i].Cell == cell.Value)
-                    pendingChecks.RemoveAt(i); // dedupe while spray-painting one cell
-            }
-            pendingChecks.Add(new PendingCheck
-            {
-                GridId = grid.EntityId,
-                Cell = cell.Value,
-                SentHSV = color,
-                // The wire format packs HSV through integers (PackHSVToUint), so the
-                // applied value is NOT bitwise equal to the selected color.
-                ExpectedHSV = color.HasValue
-                    ? ColorExtensions.UnpackHSVFromUint(color.Value.PackHSVToUint())
-                    : default(Vector3),
-                SentSkin = skin.HasValue ? skin.Value.String : null,
-                DeadlineMs = MySandboxGame.TotalGamePlayTimeInMilliseconds + (Sync.IsServer ? 0 : 20000),
-            });
-            return;
+            return slimBlock;
         }
 
         Log("no target within " + config.PaintRangeMeters + " m");
+        return null;
+    }
+
+    private void TryPaintTargetedBlock()
+    {
+        var slimBlock = FindTargetedBlock(out var grid, out var cell, out var targeting);
+        if (slimBlock == null || grid == null || cell == null)
+            return;
+
+        bool applyColor = (bool)ApplyColorProperty.GetValue(null);
+        bool applySkin = (bool)ApplySkinProperty.GetValue(null);
+        Vector3? color = applyColor ? MyPlayer.SelectedColor : (Vector3?)null;
+        MyStringHash? skin = applySkin
+            ? MyStringHash.GetOrCompute(MyPlayer.SelectedArmorSkin)
+            : (MyStringHash?)null;
+
+        long myIdentity = MySession.Static.LocalHumanPlayer?.Identity.IdentityId ?? 0;
+        Log("target " + slimBlock.BlockDefinition.Id + " at " + cell.Value
+            + " grid " + grid.EntityId
+            + " targeting=" + targeting
+            + " | applyColor=" + applyColor + " applySkin=" + applySkin
+            + " | selectedHSV=" + (color.HasValue ? color.Value.ToString("F3") : "null")
+            + " selectedSkin='" + (skin.HasValue ? skin.Value.String : "null") + "'"
+            + " | blockHSV=" + slimBlock.ColorMaskHSV.ToString("F3")
+            + " blockSkin='" + slimBlock.SkinSubtypeId.String + "'"
+            + " | bigOwners=[" + string.Join(",", grid.BigOwners) + "]"
+            + " myIdentity=" + myIdentity
+            + " isServer=" + Sync.IsServer);
+
+        if (color == null && skin == null)
+        {
+            Log("nothing to apply: enable Apply Color and/or Apply Skin in the P color picker");
+            Notify("Welder paint: enable Apply Color/Skin in the P palette");
+            return;
+        }
+
+        bool sameColor = color.HasValue && HsvEqual(slimBlock.ColorMaskHSV,
+            ColorExtensions.UnpackHSVFromUint(color.Value.PackHSVToUint()));
+        bool sameSkin = !skin.HasValue || skin.Value.String == slimBlock.SkinSubtypeId.String;
+        if (sameColor && sameSkin)
+        {
+            // The server-side ChangeColorAndSkin() is a silent no-op in this case
+            // (same HSV + same skin -> returns false, no sound, no notification).
+            Log("skip: block already has exactly this color/skin");
+            Notify("Welder paint: block already has this color/skin");
+            return;
+        }
+
+        // Same request vanilla painting sends; validated on the server (ownership).
+        PluginRequestInProgress = true;
+        try
+        {
+            grid.SkinBlocks(cell.Value, cell.Value, color, skin, playSound: true);
+        }
+        finally
+        {
+            PluginRequestInProgress = false;
+        }
+        Log("request sent: " + slimBlock.BlockDefinition.Id + " at " + cell.Value);
+
+        // Verify afterwards: SP applies synchronously, MP needs the OnSkinBlock
+        // broadcast to come back (observed from ~50 ms up to ~16 s server lag),
+        // so re-check every frame and only report failure after the deadline.
+        for (int i = pendingChecks.Count - 1; i >= 0; i--)
+        {
+            if (pendingChecks[i].GridId == grid.EntityId && pendingChecks[i].Cell == cell.Value)
+                pendingChecks.RemoveAt(i); // dedupe while spray-painting one cell
+        }
+        pendingChecks.Add(new PendingCheck
+        {
+            GridId = grid.EntityId,
+            Cell = cell.Value,
+            SentHSV = color,
+            // The wire format packs HSV through integers (PackHSVToUint), so the
+            // applied value is NOT bitwise equal to the selected color.
+            ExpectedHSV = color.HasValue
+                ? ColorExtensions.UnpackHSVFromUint(color.Value.PackHSVToUint())
+                : default(Vector3),
+            SentSkin = skin.HasValue ? skin.Value.String : null,
+            DeadlineMs = MySandboxGame.TotalGamePlayTimeInMilliseconds + (Sync.IsServer ? 0 : 20000),
+        });
+    }
+
+    /// <summary>
+    /// Eyedropper: copies the targeted block's color and skin into the player's
+    /// selection (the same state the P color picker edits), so the next paint
+    /// reproduces them.
+    /// </summary>
+    private void TryCopyTargetedColor()
+    {
+        var slimBlock = FindTargetedBlock(out var grid, out var cell, out var targeting);
+        if (slimBlock == null || cell == null)
+        {
+            Notify("Welder paint: no block in range to copy");
+            return;
+        }
+
+        var player = MySession.Static.LocalHumanPlayer;
+        if (player == null)
+            return;
+
+        player.SelectedBuildColor = slimBlock.ColorMaskHSV;
+        player.BuildArmorSkin = slimBlock.SkinSubtypeId.String;
+
+        Log("eyedropper copied " + slimBlock.BlockDefinition.Id + " at " + cell.Value
+            + " grid " + (grid?.EntityId.ToString() ?? "?")
+            + " targeting=" + targeting
+            + " hsv=" + slimBlock.ColorMaskHSV.ToString("F3")
+            + " skin='" + slimBlock.SkinSubtypeId.String + "'");
+        Notify("Welder paint: color and skin copied");
+    }
+
+    private void ShowPaintModeHud()
+    {
+        HidePaintModeHud();
+        var notification = new MyHudNotification(
+            MyStringId.GetOrCompute("Welder paint: ON  (LMB paints / Shift+P copies color)"),
+            MyHudNotificationBase.INFINITE, "White");
+        MyHud.Notifications.Add(notification);
+        paintModeNotification = notification;
+    }
+
+    private void HidePaintModeHud()
+    {
+        paintModeNotification?.Hide();
+        paintModeNotification = null;
     }
 
     private struct PendingCheck
@@ -331,6 +399,13 @@ public class WelderPaintService : IDisposable
         }
     }
 
+    private static bool HsvEqual(Vector3 a, Vector3 b)
+    {
+        // HSV is packed to integers on the wire (hue resolution 1/360), so allow small slack.
+        const float epsilon = 0.01f;
+        return Math.Abs(a.X - b.X) <= epsilon && Math.Abs(a.Y - b.Y) <= epsilon && Math.Abs(a.Z - b.Z) <= epsilon;
+    }
+
     /// <summary>
     /// Distance where the aim ray crosses the block's visible extent, or null.
     /// Mirrors vanilla MyDrillSensorRayCast: intersection with PositionComp.LocalAABB
@@ -361,13 +436,6 @@ public class WelderPaintService : IDisposable
         double? result;
         box.Intersects(ref ray, out result);
         return result;
-    }
-
-    private static bool HsvEqual(Vector3 a, Vector3 b)
-    {
-        // HSV is packed to integers on the wire (hue resolution 1/360), so allow small slack.
-        const float epsilon = 0.01f;
-        return Math.Abs(a.X - b.X) <= epsilon && Math.Abs(a.Y - b.Y) <= epsilon && Math.Abs(a.Z - b.Z) <= epsilon;
     }
 
     private static MyCubeGrid FindParentGrid(IMyEntity entity)
@@ -402,6 +470,7 @@ public class WelderPaintService : IDisposable
     public void Dispose()
     {
         paintMode = false;
+        HidePaintModeHud();
         Hits.Clear();
         CellBuffer.Clear();
     }

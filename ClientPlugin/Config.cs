@@ -13,6 +13,7 @@ public class Config : INotifyPropertyChanged
     #region Options
 
     private Binding paintKeybind = new Binding(MyKeys.O);
+    private Binding eyedropperKeybind = new Binding(MyKeys.P, shift: true);
     private float paintRangeMeters = 15f;
     private bool requireWelder = true;
     private bool continuousPaint = true;
@@ -32,6 +33,13 @@ public class Config : INotifyPropertyChanged
     {
         get => paintKeybind;
         set => SetField(ref paintKeybind, value);
+    }
+
+    [Keybind(description: "Eyedropper: copies the color and skin of the block under the crosshair into your selection (works while paint mode is on). Default Shift+P.")]
+    public Binding EyedropperKeybind
+    {
+        get => eyedropperKeybind;
+        set => SetField(ref eyedropperKeybind, value);
     }
 
     [Slider(2f, 100f, 1f, SliderAttribute.SliderType.Float, description: "Maximum distance (m) from the camera to the block being painted.")]

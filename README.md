@@ -17,10 +17,13 @@ simply **aiming a welder at a block and clicking** — much more precise, especi
 1. Open the color palette with **P** and pick your color / skin (the *Apply Color* and
    *Apply Skin* checkboxes are respected, same as vanilla).
 2. Toggle paint mode with the configurable keybind (default **O**).
+   While paint mode is on, a persistent HUD message reminds you it is active.
 3. Aim the crosshair at any placed block and press the left mouse button.
    Hold it to spray-paint continuously. With precision targeting the crosshair ray
    uses the block's real collision shape, so you can aim at the floor beside a corner
    lamp or the wall around a picture - exactly like welding does.
+4. **Shift+P** (configurable) is an eyedropper: it copies the color and skin of the
+   block under the crosshair into your selection, so you can reproduce it elsewhere.
 
 Server-side ownership rules are respected automatically — the plugin sends exactly the same
 network request (`MyCubeGrid.SkinBlocks`) the vanilla ghost painting sends, so it works in
@@ -29,6 +32,8 @@ multiplayer without granting any extra rights.
 ## Settings (plugin config)
 
 - **Paint keybind** — key (with optional Ctrl/Alt/Shift) that toggles paint mode, default `O`
+- **Eyedropper keybind** — copies the color and skin of the targeted block into your
+  selection while paint mode is on, default `Shift+P`
 - **Paint range** — max distance (m) from the camera to the target block, default 15 m
 - **Require welder** — only paint while holding a welder (default on)
 - **Continuous paint** — keep painting while LMB is held (default on)
