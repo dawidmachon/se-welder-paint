@@ -1,4 +1,4 @@
-Welder Paint - internal test build v1.0.0
+Welder Paint - internal test build v1.1.0
 ==========================================
 
 This archive is password-protected (AES-256). Extract it with 7-Zip or

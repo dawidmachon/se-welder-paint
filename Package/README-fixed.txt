@@ -1,4 +1,4 @@
-Welder Paint - FIXED test build v1.0.0
+Welder Paint - FIXED test build v1.1.0
 =======================================
 
 This build fixes the problem from the first package: your game runs on
